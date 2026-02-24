@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "company-sso-core"
+version = "1.0.0"
+description = "Production-grade reusable Django SSO package (OAuth2 login with Google, GitHub, Facebook)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Django>=4.2,<6.0",
+    "djangorestframework>=3.14.0,<4.0.0",
+    "drf-spectacular>=0.27.0,<0.28.0",
+    "requests>=2.31.0,<3.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["company_sso_core*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
