@@ -152,6 +152,12 @@ Optional:
 
 Secrets are never logged or exposed in API responses.
 
+## OpenAPI / Swagger (drf-spectacular)
+
+- Request body fields are **`code`**, optional **`state`**, optional **`workspace_id`**. There is **no `redirect_uri`** in the API; set **`SSO_REDIRECT_URI`** in settings (see above).
+- If Swagger UI still shows an old schema, restart the app and hard-refresh the docs page (or open the raw schema at `/api/schema/` and confirm `SSOLoginRequestBody`).
+- **“JSON parse error”** in Swagger almost always means the request body is not valid JSON: use **double quotes** for keys and strings, **no trailing commas**, and **no** `//` or `#` comments. Copy the **Examples** from Swagger rather than pasting from Python dicts or README if you edit the payload by hand.
+
 ## API
 
 ### POST `/api/v1/sso/login/<provider>/`

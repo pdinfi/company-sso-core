@@ -7,7 +7,13 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.request import Request
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+)
 
 from company_sso_core.serializers import SSOLoginSerializer
 from company_sso_core.services.oauth_service import OAuthService
@@ -23,7 +29,42 @@ logger = logging.getLogger(__name__)
 
 
 @extend_schema(
+    operation_id="sso_oauth_login",
+    summary="Exchange OAuth authorization code for tokens",
+    description=(
+        "Send only the **code** (and optionally **state**, **workspace_id**) from the OAuth callback. "
+        "The **redirect URI is not part of this request**: set ``SSO_REDIRECT_URI`` in Django settings "
+        "(e.g. `os.environ[\"SSO_REDIRECT_URI\"]`). It must match the redirect URL registered at the provider."
+    ),
+    tags=["sso"],
+    parameters=[
+        OpenApiParameter(
+            name="provider",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.PATH,
+            required=True,
+            description="OAuth provider slug, e.g. `google`, `github`, `microsoft`, `linkedin`.",
+        ),
+    ],
     request=SSOLoginSerializer,
+    examples=[
+        OpenApiExample(
+            "Minimal (code only)",
+            value={
+                "code": "authorization_code_from_oauth_callback",
+            },
+            request_only=True,
+        ),
+        OpenApiExample(
+            "With optional state and workspace",
+            value={
+                "code": "authorization_code_from_oauth_callback",
+                "state": "csrf_token_returned_by_provider",
+                "workspace_id": 1,
+            },
+            request_only=True,
+        ),
+    ],
     responses={
         200: OpenApiResponse(description="Login success; returns tokens and optional user info"),
         400: OpenApiResponse(description="Bad Request – validation, invalid state, or provider not configured"),
