@@ -59,3 +59,6 @@ def issue_sso_tokens(user, request):
 
 SSO_GET_OR_CREATE_USER = get_or_create_sso_user
 SSO_ISSUE_TOKENS = issue_sso_tokens
+
+# OAuth callback URL (normally from env: os.environ.get("SSO_REDIRECT_URI"))
+SSO_REDIRECT_URI = "https://app.com/cb"

@@ -11,6 +11,7 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from company_sso_core.serializers import SSOLoginSerializer
 from company_sso_core.services.oauth_service import OAuthService
+from company_sso_core.utils import get_redirect_uri
 from company_sso_core.exceptions import (
     ProviderNotConfiguredError,
     ProviderDisabledError,
@@ -45,7 +46,13 @@ class SSOLoginView(APIView):
         code = data["code"]
         workspace_id = data.get("workspace_id")
         state = data.get("state") or None
-        redirect_uri = data.get("redirect_uri") or ""
+        try:
+            redirect_uri = get_redirect_uri()
+        except ProviderNotConfiguredError as e:
+            return Response(
+                {"detail": e.detail, "code": e.default_code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             service = OAuthService()

@@ -10,4 +10,3 @@ class SSOLoginSerializer(serializers.Serializer):
     code = serializers.CharField(required=True, allow_blank=False)
     workspace_id = serializers.IntegerField(required=False, allow_null=True)
     state = serializers.CharField(required=False, allow_blank=True)
-    redirect_uri = serializers.URLField(required=False, allow_blank=True)

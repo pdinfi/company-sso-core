@@ -97,36 +97,37 @@ SSO_PROVIDERS = {
 }
 ```
 
-Register the app and create OAuth2 credentials (client_id, client_secret, redirect URI) in each provider’s developer console; use the same **redirect_uri** in your app when building the auth URL and when calling the login API.
+Register the app and create OAuth2 credentials in each provider’s developer console. Set **`SSO_REDIRECT_URI`** in Django settings (usually from `.env`) to the **exact** callback URL you register with providers; the server uses it for both the authorization request and the code exchange—clients must not send `redirect_uri`.
 
 ### 2. How to use (SSO flow)
 
-1. **Get the authorization URL** (redirect your user to the provider’s sign-in page):
+1. **Set `SSO_REDIRECT_URI`** in settings to your callback, e.g. `SSO_REDIRECT_URI = os.environ["SSO_REDIRECT_URI"]` (must match what you registered at the OAuth provider).
+
+2. **Get the authorization URL** (redirect your user to the provider’s sign-in page). `get_authorization_url` uses `SSO_REDIRECT_URI` automatically:
 
    ```python
    from company_sso_core.utils import get_authorization_url
 
-   redirect_uri = "https://yourapp.com/callback"  # must match provider console
    state = "random_csrf_token"  # generate and validate via SSO_VALIDATE_STATE
-   url = get_authorization_url("linkedin", redirect_uri, state=state)
-   # Optional: scope="r_liteprofile r_emailaddress" for LinkedIn
+   url = get_authorization_url("linkedin", state=state)
+   # Optional: scope="r_liteprofile r_emailaddress" for LinkedIn, e.g. get_authorization_url("linkedin", state=state, scope="...")
    # Redirect the user to `url` (e.g. 302 or frontend window.location).
    ```
 
-2. **User signs in** at the provider; the provider redirects to your `redirect_uri` with `?code=...&state=...`.
+3. **User signs in** at the provider; the provider redirects to your configured callback URL with `?code=...&state=...`.
 
-3. **Exchange the code for tokens** by calling your backend:
+4. **Exchange the code for tokens** — the backend reads `redirect_uri` only from settings, not from the request body:
 
    ```http
    POST /api/v1/sso/login/linkedin/
    Content-Type: application/json
 
-   {"code": "auth_code_from_callback", "redirect_uri": "https://yourapp.com/callback", "state": "random_csrf_token"}
+   {"code": "auth_code_from_callback", "state": "random_csrf_token"}
    ```
 
-4. **Response** (200): `{"access": "...", "refresh": "...", "user": {"id": 1, "email": "..."}}` — use the tokens for authenticated requests.
+5. **Response** (200): `{"access": "...", "refresh": "...", "user": {"id": 1, "email": "..."}}` — use the tokens for authenticated requests.
 
-Frontend example: your backend can expose an endpoint that returns the authorization URL (using `get_authorization_url(provider_slug, redirect_uri, state=state)`); the login page redirects the user to that URL. After the provider redirects back with `?code=...&state=...`, send the `code` (and the same `redirect_uri` and `state`) to `POST .../login/<provider>/`.
+Frontend example: your backend can expose an endpoint that returns the authorization URL (`get_authorization_url("linkedin", state=state)`); the login page redirects to that URL. After the callback, POST only `code` and optional `state` to `POST .../login/<provider>/`.
 
 ## Required settings
 
@@ -134,6 +135,7 @@ Frontend example: your backend can expose an endpoint that returns the authoriza
 |--------|-------------|
 | `SSO_GET_OR_CREATE_USER` | Callable `(provider_slug, user_info_dict, request) -> (user, created)`. Resolves or creates the Django user after OAuth. |
 | `SSO_ISSUE_TOKENS` | Callable `(user, request) -> dict`. Returns e.g. `{"access": "...", "refresh": "..."}` for JWT (or any token format). |
+| `SSO_REDIRECT_URI` | Full callback URL for OAuth (e.g. `https://yourapp.com/api/v1/sso/callback`). Must match what you register at each provider; set from environment (`os.environ`). Used for token exchange and for `get_authorization_url`; **never** taken from client input. |
 
 Optional:
 
@@ -162,15 +164,15 @@ Exchange an OAuth authorization code for tokens and optionally create/get user. 
 {
   "code": "authorization_code_from_provider",
   "workspace_id": 1,
-  "state": "optional_state_for_csrf",
-  "redirect_uri": "https://yourapp.com/callback"
+  "state": "optional_state_for_csrf"
 }
 ```
 
 - `code` (required): Authorization code from the OAuth provider.
 - `workspace_id` (optional): For workspace-scoped provider credentials.
 - `state` (optional): Validated by `SSO_VALIDATE_STATE` if set.
-- `redirect_uri` (optional): Must match the redirect URI used in the authorization request.
+
+The **redirect URI** is always **`SSO_REDIRECT_URI`** from Django settings (typically loaded from `.env`). Do not pass it in the request body.
 
 **Responses:**
 
@@ -183,6 +185,9 @@ Exchange an OAuth authorization code for tokens and optionally create/get user. 
 
 ```python
 import os
+
+# Required: same URL registered in Google / OAuth app dashboards
+SSO_REDIRECT_URI = os.environ.get("SSO_REDIRECT_URI", "https://yourapp.com/api/v1/sso/callback")
 
 # Fallback credentials (e.g. from env). Use any supported provider slug (50+).
 SSO_PROVIDERS = {

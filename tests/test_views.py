@@ -2,6 +2,7 @@
 import pytest
 from unittest.mock import patch
 
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -24,7 +25,7 @@ class TestSSOLoginView:
             url = reverse("sso_api:login", kwargs={"provider": "google"})
             resp = api.post(
                 url,
-                {"code": "auth_code", "redirect_uri": "https://app.com/cb"},
+                {"code": "auth_code"},
                 format="json",
             )
         assert resp.status_code == 200
@@ -35,11 +36,19 @@ class TestSSOLoginView:
 
     def test_login_400_missing_code(self):
         """Missing code returns 400 validation error."""
-        from rest_framework.test import APIClient
         api = APIClient()
         url = reverse("sso_api:login", kwargs={"provider": "google"})
         resp = api.post(url, {}, format="json")
         assert resp.status_code == 400
+
+    @override_settings(SSO_REDIRECT_URI="")
+    def test_login_400_when_sso_redirect_uri_not_set(self):
+        """Missing SSO_REDIRECT_URI returns 400 provider_not_configured."""
+        api = APIClient()
+        url = reverse("sso_api:login", kwargs={"provider": "google"})
+        resp = api.post(url, {"code": "x"}, format="json")
+        assert resp.status_code == 400
+        assert "provider_not_configured" in (resp.json().get("code") or "")
 
     def test_login_403_provider_disabled(self):
         """When provider is disabled, return 403."""
@@ -57,7 +66,7 @@ class TestSSOLoginView:
         url = reverse("sso_api:login", kwargs={"provider": "google"})
         resp = api.post(
             url,
-            {"code": "auth_code", "redirect_uri": "https://app.com/cb"},
+            {"code": "auth_code"},
             format="json",
         )
         assert resp.status_code == 403
